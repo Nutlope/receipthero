@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { ProcessedReceipt } from "@/lib/types";
 import Header from "./Header";
@@ -11,21 +11,94 @@ interface UploadedFile {
   id: string;
   name: string;
   file: File;
-  isProcessing?: boolean;
+  isProcessing: boolean;
+  isProcessed: boolean;
+  error?: string;
+  receipt?: ProcessedReceipt;
 }
 
 interface UploadReceiptPageProps {
   onProcessFiles: (files: File[], receipts: ProcessedReceipt[], base64s: string[]) => void;
-  isProcessing: boolean;
 }
 
 export default function UploadReceiptPage({
   onProcessFiles,
-  isProcessing,
 }: UploadReceiptPageProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const autoRedirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Auto-redirect logic: if all files are processed and user doesn't upload more within 5 seconds
+  useEffect(() => {
+    const allFilesProcessed = uploadedFiles.length > 0 &&
+      uploadedFiles.every(f => f.isProcessed);
+    const hasSuccessfulReceipts = uploadedFiles.some(f => f.isProcessed && !f.error && f.receipt);
+
+    if (allFilesProcessed && hasSuccessfulReceipts) {
+      // Clear any existing timers
+      if (autoRedirectTimerRef.current) {
+        clearTimeout(autoRedirectTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+
+      // Start countdown at 5 seconds
+      setCountdown(5);
+
+      // Start countdown timer (updates every second)
+      countdownTimerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            // Countdown finished, clear interval
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Start main auto-redirect timer
+      autoRedirectTimerRef.current = setTimeout(() => {
+        console.log('Auto-redirecting to results...');
+        setCountdown(null);
+        handleAutoGenerateResults();
+      }, 5000);
+    } else {
+      // Clear countdown if conditions are not met
+      setCountdown(null);
+    }
+
+    // Cleanup timers on unmount or when files change
+    return () => {
+      if (autoRedirectTimerRef.current) {
+        clearTimeout(autoRedirectTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, [uploadedFiles]);
+
+  // Clear timer when new files are uploaded
+  const clearAutoRedirectTimer = () => {
+    if (autoRedirectTimerRef.current) {
+      clearTimeout(autoRedirectTimerRef.current);
+      autoRedirectTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(null);
+  };
 
   const onDrop = (acceptedFiles: File[]) => {
+    clearAutoRedirectTimer(); // Clear timer when new files are uploaded
     handleFileUpload(acceptedFiles);
   };
 
@@ -40,7 +113,7 @@ export default function UploadReceiptPage({
     },
   });
 
-  const handleFileUpload = (files: File[]) => {
+  const handleFileUpload = async (files: File[]) => {
     const existingNames = new Set(uploadedFiles.map(f => f.name));
     const uniqueFiles = files.filter(file => !existingNames.has(file.name));
 
@@ -48,20 +121,89 @@ export default function UploadReceiptPage({
       id: Math.random().toString(36).slice(2, 11),
       name: file.name,
       file,
-      isProcessing: false,
+      isProcessing: true,
+      isProcessed: false,
     }));
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
+
+    // Start processing files immediately
+    for (const uploadedFile of newFiles) {
+      try {
+        // Convert file to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            const base64Data = result.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedFile.file);
+        });
+
+        // Call OCR API
+        const response = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64Image: base64 }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.receipts && data.receipts.length > 0) {
+          const receipt = data.receipts[0]; // Take first receipt if multiple
+          const processedReceipt: ProcessedReceipt = {
+            ...receipt,
+            id: uploadedFile.id,
+            fileName: uploadedFile.name,
+            thumbnail: `data:image/jpeg;base64,${base64}`,
+            base64,
+            mimeType: uploadedFile.file.type,
+          };
+
+          // Update file status
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.id === uploadedFile.id
+                ? { ...f, isProcessing: false, isProcessed: true, receipt: processedReceipt }
+                : f
+            )
+          );
+        } else {
+          throw new Error(data.error || 'OCR processing failed');
+        }
+      } catch (error) {
+        console.error('Error processing file:', error);
+        setUploadedFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadedFile.id
+              ? { ...f, isProcessing: false, isProcessed: true, error: error instanceof Error ? error.message : 'Processing failed' }
+              : f
+          )
+        );
+      }
+    }
   };
 
   const removeFile = (id: string) => {
     setUploadedFiles((prev) => prev.filter((file) => file.id !== id));
   };
 
-  const handleGenerateResults = () => {
+  const allFilesProcessed = uploadedFiles.length > 0 &&
+    uploadedFiles.every(f => f.isProcessed);
+  const hasSuccessfulReceipts = uploadedFiles.some(f => f.isProcessed && !f.error && f.receipt);
+
+  // Auto-generate results when all files are processed
+  const handleAutoGenerateResults = () => {
+    const processedReceipts = uploadedFiles
+      .filter(f => f.isProcessed && !f.error && f.receipt)
+      .map(f => f.receipt!);
+
     const files = uploadedFiles.map((f) => f.file);
-    // Pass empty arrays for receipts and base64s since processing happens in the parent
-    onProcessFiles(files, [], []);
+    const base64s = uploadedFiles.map((f) => f.receipt?.base64 || '');
+
+    onProcessFiles(files, processedReceipts, base64s);
   };
 
   return (
@@ -85,7 +227,7 @@ export default function UploadReceiptPage({
 
         <div className="w-full md:w-[361px] h-[438px] mx-auto mb-8 bg-white border border-[#d1d5dc] rounded-2xl shadow-sm">
           <div className="w-full md:w-[329px] h-[406px] m-4 bg-gray-50 border border-[#d1d5dc] border-dashed rounded-xl flex flex-col">
-            {uploadedFiles.length === 0 && !isProcessing ? (
+            {uploadedFiles.length === 0 ? (
               <div
                 className="h-full flex flex-col items-center justify-center p-8 cursor-pointer"
                 {...getRootProps()}
@@ -111,7 +253,7 @@ export default function UploadReceiptPage({
                   </p>
                 </div>
               </div>
-            ) : uploadedFiles.length > 0 && !isProcessing ? (
+            ) : uploadedFiles.length > 0 ? (
               <div
                 className="flex flex-col justify-start items-start w-full p-[18px] gap-3 cursor-pointer"
                 {...getRootProps()}
@@ -120,15 +262,57 @@ export default function UploadReceiptPage({
                 {uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md bg-gray-100 border border-[#d1d5dc]"
+                    className={`w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md border ${
+                      file.error
+                        ? 'bg-red-50 border-red-200'
+                        : file.isProcessed
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-gray-100 border-[#d1d5dc]'
+                    }`}
                     style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      <p className="text-xs text-[#364153] truncate">
+                      <p className={`text-xs truncate ${
+                        file.error ? 'text-red-700' : 'text-[#364153]'
+                      }`}>
                         {file.name}
                       </p>
                       {file.isProcessing && (
-                        <div className="animate-spin text-sm">🔄</div>
+                        <img
+                          src="/loading.svg"
+                          alt="Processing"
+                          className="w-4 h-4 animate-spin"
+                        />
+                      )}
+                      {file.isProcessed && !file.error && (
+                        <svg
+                          className="w-4 h-4 text-green-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                      {file.error && (
+                        <svg
+                          className="w-4 h-4 text-red-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
                       )}
                     </div>
                     <button
@@ -180,21 +364,26 @@ export default function UploadReceiptPage({
         </div>
 
         <div className="text-center">
-          <button
-            className={`flex justify-center items-center w-full md:w-[205px] mx-auto gap-2 px-[25px] py-2.5 rounded-md border border-[#d1d5dc] disabled:opacity-50 transition-colors ${
-              uploadedFiles.length > 0
-                ? "bg-gray-900 hover:bg-gray-800 cursor-pointer"
-                : "bg-[#99a1af] hover:bg-[#8a92a0] cursor-not-allowed"
-            }`}
-            style={{ boxShadow: "0px 1px 7px -5px rgba(0,0,0,0.25)" }}
-            disabled={uploadedFiles.length === 0 || isProcessing}
-            onClick={handleGenerateResults}
-          >
-            <img src="/sparks.svg" className="size-[18px]" />
-            <p className="flex-grow-0 flex-shrink-0 text-base font-medium text-right text-white">
-              Generate Results
-            </p>
-          </button>
+          {uploadedFiles.length > 0 && (
+            <div className="mb-4 text-sm text-gray-600">
+              {allFilesProcessed ? (
+                hasSuccessfulReceipts ? (
+                  countdown !== null ? (
+                    <span className="text-blue-600 animate-pulse">
+                      Auto-redirecting to results in {countdown} second{countdown !== 1 ? 's' : ''}...
+                    </span>
+                  ) : (
+                    <span className="text-green-600">All files processed successfully! Redirecting to results...</span>
+                  )
+                ) : (
+                  <span className="text-red-600">Some files failed to process. Please try again.</span>
+                )
+              ) : (
+                <span>Processing files... {uploadedFiles.filter(f => f.isProcessed).length}/{uploadedFiles.length} complete</span>
+              )}
+            </div>
+          )}
+
         </div>
 
         <Footer />
