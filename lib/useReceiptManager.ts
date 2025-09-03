@@ -4,6 +4,20 @@ import { ProcessedReceipt, SpendingBreakdown } from './types';
 interface StoredData {
   receipts: ProcessedReceipt[];
   breakdown: SpendingBreakdown | null;
+  base64s: string[];
+  mimeTypes: string[];
+}
+
+export interface UploadedFile {
+  id: string;
+  name: string;
+  file: File;
+  isProcessing: boolean;
+  isProcessed: boolean;
+  error?: string;
+  receipt?: ProcessedReceipt;
+  base64?: string;
+  mimeType?: string;
 }
 
 const STORAGE_KEY = 'receipt-hero-data';
@@ -25,6 +39,9 @@ const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: strin
 export function useReceiptManager() {
   const [receipts, setReceipts] = useState<ProcessedReceipt[]>([]);
   const [breakdown, setBreakdown] = useState<SpendingBreakdown | null>(null);
+  const [base64s, setBase64s] = useState<string[]>([]);
+  const [mimeTypes, setMimeTypes] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
