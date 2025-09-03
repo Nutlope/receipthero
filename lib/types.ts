@@ -11,6 +11,8 @@ export const ProcessedReceiptSchema = z.object({
   taxAmount: z.number(),
   amount: z.number(),
   thumbnail: z.string(),
+  base64: z.string(),
+  mimeType: z.string(),
 });
 
 // Type exports
@@ -23,7 +25,5 @@ export interface SpendingCategory {
 }
 
 export interface SpendingBreakdown {
-  totalSpending: number;
-  totalReceipts: number;
   categories: SpendingCategory[];
 }

@@ -10,7 +10,6 @@ export default function HomePage() {
   const {
     receipts,
     breakdown,
-    base64s,
     isProcessing,
     isLoaded,
     hasData,
@@ -21,13 +20,13 @@ export default function HomePage() {
   } = useReceiptManager();
 
   const handleProcessFiles = async (files: File[], receipts: ProcessedReceipt[], base64s: string[]) => {
-    await addReceipts(files, receipts, base64s);
+    await addReceipts(files, receipts);
   };
 
   const handleAddMoreReceipts = async () => {
     const files = await selectFiles();
     if (files.length > 0) {
-      await addReceipts(files, receipts, base64s);
+      await addReceipts(files, receipts);
     }
   };
 

@@ -4,7 +4,6 @@ import { ProcessedReceipt, SpendingBreakdown } from './types';
 interface StoredData {
   receipts: ProcessedReceipt[];
   breakdown: SpendingBreakdown | null;
-  base64s: string[];
 }
 
 const STORAGE_KEY = 'receipt-hero-data';
@@ -26,7 +25,6 @@ const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: strin
 export function useReceiptManager() {
   const [receipts, setReceipts] = useState<ProcessedReceipt[]>([]);
   const [breakdown, setBreakdown] = useState<SpendingBreakdown | null>(null);
-  const [base64s, setBase64s] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -38,7 +36,6 @@ export function useReceiptManager() {
         const data: StoredData = JSON.parse(stored);
         setReceipts(data.receipts || []);
         setBreakdown(data.breakdown || null);
-        setBase64s(data.base64s || []);
       }
     } catch (error) {
       console.error('Failed to load data from localStorage:', error);
@@ -48,9 +45,9 @@ export function useReceiptManager() {
   }, []);
 
   // Save data to localStorage
-  const saveToStorage = useCallback((receipts: ProcessedReceipt[], breakdown: SpendingBreakdown | null, base64s: string[]) => {
+  const saveToStorage = useCallback((receipts: ProcessedReceipt[], breakdown: SpendingBreakdown | null) => {
     try {
-      const data: StoredData = { receipts, breakdown, base64s };
+      const data: StoredData = { receipts, breakdown };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.error('Failed to save data to localStorage:', error);
@@ -75,21 +72,15 @@ export function useReceiptManager() {
       .sort((a, b) => b.amount - a.amount);
 
     return {
-      totalSpending: Math.round(totalSpending * 100) / 100,
-      totalReceipts: receipts.length,
       categories,
     };
   }, []);
 
-  // Process files through OCR API
-  const processFiles = useCallback(async (files: File[]): Promise<{ receipts: ProcessedReceipt[]; base64s: string[] }> => {
-    const processedReceipts: ProcessedReceipt[] = [];
-    const processedBase64s: string[] = [];
-
-    for (const file of files) {
+  // Process files through OCR API (parallel processing)
+  const processFiles = useCallback(async (files: File[]): Promise<ProcessedReceipt[]> => {
+    const filePromises = files.map(async (file) => {
       try {
-        const base64 = await readFileAsBase64(file);
-        processedBase64s.push(base64);
+        const { base64, mimeType } = await readFileAsBase64(file);
 
         const response = await fetch('/api/ocr', {
           method: 'POST',
@@ -100,40 +91,42 @@ export function useReceiptManager() {
         const data = await response.json();
 
         if (response.ok && data.receipts) {
-          const enrichedReceipts = data.receipts.map((receipt: ProcessedReceipt) => ({
+          return data.receipts.map((receipt: ProcessedReceipt) => ({
             ...receipt,
             id: receipt.id || Math.random().toString(36).substring(2, 11),
             fileName: receipt.fileName || file.name,
-            thumbnail: receipt.thumbnail || `data:image/jpeg;base64,${base64}`,
+            thumbnail: receipt.thumbnail || `data:${mimeType};base64,${base64}`,
+            base64,
+            mimeType,
           }));
-          processedReceipts.push(...enrichedReceipts);
         } else {
           console.error('OCR processing failed:', data.error);
+          return [];
         }
       } catch (error) {
         console.error('Error processing file:', error);
+        return [];
       }
-    }
+    });
 
-    return { receipts: processedReceipts, base64s: processedBase64s };
+    const results = await Promise.all(filePromises);
+    return results.flat();
   }, []);
 
   // Add new receipts (used by upload page)
-  const addReceipts = useCallback(async (files: File[], existingReceipts: ProcessedReceipt[], existingBase64s: string[]) => {
+  const addReceipts = useCallback(async (files: File[], existingReceipts: ProcessedReceipt[]) => {
     setIsProcessing(true);
 
     try {
-      const { receipts: newReceipts, base64s: newBase64s } = await processFiles(files);
+      const newReceipts = await processFiles(files);
       const updatedReceipts = [...existingReceipts, ...newReceipts];
-      const updatedBase64s = [...existingBase64s, ...newBase64s];
       const newBreakdown = calculateBreakdown(updatedReceipts);
 
       setReceipts(updatedReceipts);
       setBreakdown(newBreakdown);
-      setBase64s(updatedBase64s);
-      saveToStorage(updatedReceipts, newBreakdown, updatedBase64s);
+      saveToStorage(updatedReceipts, newBreakdown);
 
-      return { receipts: updatedReceipts, breakdown: newBreakdown, base64s: updatedBase64s };
+      return { receipts: updatedReceipts, breakdown: newBreakdown };
     } catch (error) {
       console.error('Failed to add receipts:', error);
       throw error;
@@ -149,21 +142,19 @@ export function useReceiptManager() {
     if (updatedReceipts.length === 0) {
       setReceipts([]);
       setBreakdown(null);
-      setBase64s([]);
-      saveToStorage([], null, []);
+      saveToStorage([], null);
     } else {
       const newBreakdown = calculateBreakdown(updatedReceipts);
       setReceipts(updatedReceipts);
       setBreakdown(newBreakdown);
-      saveToStorage(updatedReceipts, newBreakdown, base64s);
+      saveToStorage(updatedReceipts, newBreakdown);
     }
-  }, [receipts, base64s, calculateBreakdown, saveToStorage]);
+  }, [receipts, calculateBreakdown, saveToStorage]);
 
   // Clear all data
   const clearAll = useCallback(() => {
     setReceipts([]);
     setBreakdown(null);
-    setBase64s([]);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
@@ -188,7 +179,6 @@ export function useReceiptManager() {
     // State
     receipts,
     breakdown,
-    base64s,
     isProcessing,
     isLoaded,
     hasData: receipts.length > 0 && breakdown !== null,

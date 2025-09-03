@@ -17,6 +17,12 @@ interface ResultsPageProps {
   isProcessing: boolean;
 }
 
+function calculateTotals(receipts: ProcessedReceipt[]) {
+  const totalSpending = receipts.reduce((sum, receipt) => sum + receipt.amount, 0);
+  const totalReceipts = receipts.length;
+  return { totalSpending, totalReceipts };
+}
+
 export default function ResultsPage({
   processedReceipts,
   spendingBreakdown,
@@ -25,6 +31,8 @@ export default function ResultsPage({
   onStartOver,
   isProcessing,
 }: ResultsPageProps) {
+  const { totalSpending, totalReceipts } = calculateTotals(processedReceipts);
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="flex items-center justify-between p-6 bg-white border-b border-[#d1d5dc]">
@@ -49,10 +57,10 @@ export default function ResultsPage({
           <div className="mb-8">
             <h2 className="text-lg font-semibold mb-2">Total Spending</h2>
             <div className="text-3xl font-bold">
-              ${spendingBreakdown.totalSpending}
+              ${totalSpending.toFixed(2)}
             </div>
             <div className="text-sm text-muted-foreground">
-              {spendingBreakdown.totalReceipts} receipts processed
+              {totalReceipts} receipts processed
             </div>
           </div>
 
@@ -159,7 +167,7 @@ export default function ResultsPage({
                       Total:
                     </td>
                     <td className="p-4 font-bold">
-                      ${spendingBreakdown.totalSpending}
+                      ${totalSpending.toFixed(2)}
                     </td>
                   </tr>
                 </tfoot>
