@@ -62,13 +62,13 @@ export default function UploadReceiptPage({
       <Header />
 
       <main className="container mx-auto px-6 py-16 max-w-4xl">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex flex-col gap-4">
           <img
             src="/receipt-hero.svg"
             className="w-[77.58px] h-[71.29px] mx-auto"
             alt="Receipt illustration"
           />
-          <h1 className="text-2xl font-medium mb-4 text-[#030712]">
+          <h1 className="text-2xl font-medium text-[#030712]">
             Organize Your Receipts
           </h1>
           <p className="text-base text-[#4a5565] max-w-full md:max-w-[271px] mx-auto">
@@ -148,17 +148,13 @@ export default function UploadReceiptPage({
                   </div>
                 ))}
                 <div
-                  className="self-stretch flex-grow-0 flex-shrink-0 h-[33px] relative overflow-hidden rounded-md bg-white border border-[#d1d5dc] cursor-pointer"
+                  className="self-stretch flex-grow-0 flex-shrink-0 h-[33px] relative overflow-hidden rounded-md bg-white border border-[#d1d5dc] cursor-pointer flex flex-row gap-1 items-center px-4 py-2.5"
                   style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // The dropzone will handle the file selection
-                  }}
                 >
-                  <p className="absolute left-[35px] top-[9px] text-xs text-left text-[#101828]">
+                  <img src="/upload.svg" className="size-[14px]" alt="" />
+                  <p className="text-xs text-left text-[#101828]">
                     Upload more receipts
                   </p>
-                  <img src="/upload.svg" className="size-[14px]" alt="" />
                 </div>
               </div>
             ) : (
@@ -182,22 +178,7 @@ export default function UploadReceiptPage({
             disabled={uploadedFiles.length === 0 || isProcessing}
             onClick={handleGenerateResults}
           >
-            <svg
-              width={18}
-              height={18}
-              viewBox="0 0 18 18"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="flex-grow-0 flex-shrink-0 w-[18px] h-[18px] relative"
-              preserveAspectRatio="none"
-            >
-              <path
-                d="M7.35975 11.928L6.75 14.0625L6.14025 11.928C5.98265 11.3766 5.68717 10.8745 5.28169 10.4691C4.87621 10.0636 4.37411 9.7681 3.82275 9.6105L1.6875 9L3.822 8.39025C4.37336 8.23265 4.87546 7.93717 5.28094 7.53169C5.68642 7.12621 5.9819 6.62411 6.1395 6.07275L6.75 3.9375L7.35975 6.072C7.51735 6.62335 7.81283 7.12546 8.21831 7.53094C8.62379 7.93642 9.12589 8.2319 9.67725 8.3895L11.8125 9L9.678 9.60975C9.12665 9.76735 8.62454 10.0628 8.21906 10.4683C7.81358 10.8738 7.5181 11.3759 7.3605 11.9272L7.35975 11.928ZM13.6943 6.53625L13.5 7.3125L13.3057 6.53625C13.1946 6.09119 12.9645 5.68472 12.6402 5.36027C12.3159 5.03583 11.9095 4.80562 11.4645 4.69425L10.6875 4.5L11.4645 4.30575C11.9095 4.19438 12.3159 3.96417 12.6402 3.63973C12.9645 3.31528 13.1946 2.90881 13.3057 2.46375L13.5 1.6875L13.6943 2.46375C13.8055 2.9089 14.0357 3.31544 14.3601 3.63989C14.6846 3.96434 15.0911 4.1945 15.5363 4.30575L16.3125 4.5L15.5363 4.69425C15.0911 4.8055 14.6846 5.03566 14.3601 5.36011C14.0357 5.68456 13.8055 6.0911 13.6943 6.53625ZM12.6705 15.4252L12.375 16.3125L12.0795 15.4252C11.9967 15.1767 11.8571 14.9509 11.6718 14.7657C11.4866 14.5804 11.2608 14.4408 11.0122 14.358L10.125 14.0625L11.0122 13.767C11.2608 13.6842 11.4866 13.5446 11.6718 13.3593C11.8571 13.1741 11.9967 12.9483 12.0795 12.6998L12.375 11.8125L12.6705 12.6998C12.7533 12.9483 12.8929 13.1741 13.0782 13.3593C13.2634 13.5446 13.4892 13.6842 13.7377 13.767L14.625 14.0625L13.7377 14.358C13.4892 14.4408 13.2634 14.5804 13.0782 14.7657C12.8929 14.9509 12.7533 15.1767 12.6705 15.4252Z"
-                stroke="white"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <img src="/sparks.svg" className="size-[18px]" />
             <p className="flex-grow-0 flex-shrink-0 text-base font-medium text-right text-white">
               Generate Results
             </p>
