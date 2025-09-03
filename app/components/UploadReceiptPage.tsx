@@ -3,6 +3,7 @@
 import type React from "react";
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { useOCR } from "@/lib/useOCR";
 import Header from "./Header";
 import Footer from "./Footer";
 
@@ -13,7 +14,7 @@ interface UploadedFile {
 }
 
 interface UploadReceiptPageProps {
-  onProcessFiles: (files: File[]) => void;
+  onProcessFiles: (files: File[], texts: string[], base64s: string[]) => void;
   isProcessing: boolean;
 }
 
@@ -22,6 +23,7 @@ export default function UploadReceiptPage({
   isProcessing,
 }: UploadReceiptPageProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const ocr = useOCR();
 
   const onDrop = (acceptedFiles: File[]) => {
     handleFileUpload(acceptedFiles);
@@ -39,13 +41,21 @@ export default function UploadReceiptPage({
   });
 
   const handleFileUpload = (files: File[]) => {
-    const newFiles: UploadedFile[] = files.map((file) => ({
+    const existingNames = new Set(uploadedFiles.map(f => f.name));
+    const uniqueFiles = files.filter(file => !existingNames.has(file.name));
+
+    const newFiles: UploadedFile[] = uniqueFiles.map((file) => ({
       id: Math.random().toString(36).slice(2, 11),
       name: file.name,
       file,
     }));
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
+
+    // Process files immediately for OCR
+    if (newFiles.length > 0) {
+      ocr.processFiles(newFiles.map(f => ({ file: f.file, id: f.id })));
+    }
   };
 
   const removeFile = (id: string) => {
@@ -54,7 +64,7 @@ export default function UploadReceiptPage({
 
   const handleGenerateResults = () => {
     const files = uploadedFiles.map((f) => f.file);
-    onProcessFiles(files);
+    onProcessFiles(files, ocr.texts, ocr.base64s);
   };
 
   return (
@@ -116,9 +126,14 @@ export default function UploadReceiptPage({
                     className="w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md bg-gray-100 border border-[#d1d5dc]"
                     style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
                   >
-                    <p className="text-xs text-[#364153] truncate flex-1">
-                      {file.name}
-                    </p>
+                    <div className="flex items-center gap-2 flex-1">
+                      <p className="text-xs text-[#364153] truncate">
+                        {file.name}
+                      </p>
+                      {ocr.processingIds.has(file.id) && (
+                        <div className="animate-spin text-sm">🔄</div>
+                      )}
+                    </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -175,7 +190,7 @@ export default function UploadReceiptPage({
                 : "bg-[#99a1af] hover:bg-[#8a92a0] cursor-not-allowed"
             }`}
             style={{ boxShadow: "0px 1px 7px -5px rgba(0,0,0,0.25)" }}
-            disabled={uploadedFiles.length === 0 || isProcessing}
+            disabled={uploadedFiles.length === 0 || isProcessing || ocr.texts.length !== uploadedFiles.length}
             onClick={handleGenerateResults}
           >
             <img src="/sparks.svg" className="size-[18px]" />

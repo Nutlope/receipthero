@@ -7,6 +7,7 @@ import {
   type ProcessedReceipt,
   type SpendingBreakdown,
 } from "@/lib/mock-receipt-processor";
+
 import UploadReceiptPage from "@/app/components/UploadReceiptPage";
 import ResultsPage from "@/app/components/ResultsPage";
 
@@ -42,12 +43,22 @@ export default function HomePage() {
     };
   };
 
-  const handleProcessFiles = async (files: File[]) => {
+  const handleProcessFiles = async (files: File[], texts: string[], base64s: string[]) => {
     setIsProcessing(true);
 
     try {
+      console.log('OCR texts:', texts);
+
+      // For now, use mock processing
       const results = await processReceiptImages(files);
-      
+
+      // Store in localStorage
+      localStorage.setItem('receipts', JSON.stringify({
+        base64s,
+        texts,
+        processed: results
+      }));
+
       setProcessedReceipts(results.receipts);
       setSpendingBreakdown(results.breakdown);
       setShowResults(true);
