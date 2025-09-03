@@ -1,23 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ProcessedReceipt, SpendingBreakdown } from './types';
+import { ProcessedReceipt, SpendingBreakdown, UploadedFile, FileStatus } from './types';
+import { normalizeDate } from './utils';
 
 interface StoredData {
   receipts: ProcessedReceipt[];
   breakdown: SpendingBreakdown | null;
-  base64s: string[];
-  mimeTypes: string[];
-}
-
-export interface UploadedFile {
-  id: string;
-  name: string;
-  file: File;
-  isProcessing: boolean;
-  isProcessed: boolean;
-  error?: string;
-  receipt?: ProcessedReceipt;
-  base64?: string;
-  mimeType?: string;
 }
 
 const STORAGE_KEY = 'receipt-hero-data';
@@ -39,8 +26,6 @@ const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: strin
 export function useReceiptManager() {
   const [receipts, setReceipts] = useState<ProcessedReceipt[]>([]);
   const [breakdown, setBreakdown] = useState<SpendingBreakdown | null>(null);
-  const [base64s, setBase64s] = useState<string[]>([]);
-  const [mimeTypes, setMimeTypes] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -94,7 +79,7 @@ export function useReceiptManager() {
   }, []);
 
   // Process files through OCR API (parallel processing)
-  const processFiles = useCallback(async (files: File[]): Promise<ProcessedReceipt[]> => {
+  const processFiles = useCallback(async (files: File[]): Promise<UploadedFile[]> => {
     const filePromises = files.map(async (file) => {
       try {
         const { base64, mimeType } = await readFileAsBase64(file);
@@ -107,36 +92,67 @@ export function useReceiptManager() {
 
         const data = await response.json();
 
-        if (response.ok && data.receipts) {
-          return data.receipts.map((receipt: ProcessedReceipt) => ({
+        if (response.ok && data.receipts && data.receipts.length > 0) {
+          const receipt = data.receipts[0]; // Take first receipt if multiple
+          const processedReceipt: ProcessedReceipt = {
             ...receipt,
             id: receipt.id || Math.random().toString(36).substring(2, 11),
             fileName: receipt.fileName || file.name,
+            date: normalizeDate(receipt.date), // Normalize date format
             thumbnail: receipt.thumbnail || `data:${mimeType};base64,${base64}`,
             base64,
             mimeType,
-          }));
+          };
+
+          return {
+            id: Math.random().toString(36).substring(2, 11),
+            name: file.name,
+            file,
+            status: 'receipt' as FileStatus,
+            receipt: processedReceipt,
+            base64,
+            mimeType,
+          };
         } else {
-          console.error('OCR processing failed:', data.error);
-          return [];
+          // No receipt data found
+          return {
+            id: Math.random().toString(36).substring(2, 11),
+            name: file.name,
+            file,
+            status: 'not-receipt' as FileStatus,
+            base64,
+            mimeType,
+          };
         }
       } catch (error) {
         console.error('Error processing file:', error);
-        return [];
+        return {
+          id: Math.random().toString(36).substring(2, 11),
+          name: file.name,
+          file,
+          status: 'error' as FileStatus,
+          error: error instanceof Error ? error.message : 'Processing failed',
+          base64: '',
+          mimeType: file.type,
+        };
       }
     });
 
     const results = await Promise.all(filePromises);
-    return results.flat();
+    return results;
   }, []);
 
   // Add new receipts (used by upload page)
-  const addReceipts = useCallback(async (files: File[], existingReceipts: ProcessedReceipt[]) => {
+  const addReceipts = useCallback(async (uploadedFiles: UploadedFile[]) => {
     setIsProcessing(true);
 
     try {
-      const newReceipts = await processFiles(files);
-      const updatedReceipts = [...existingReceipts, ...newReceipts];
+      // Filter only files that are receipts
+      const newReceipts = uploadedFiles
+        .filter(file => file.status === 'receipt' && file.receipt)
+        .map(file => file.receipt!);
+
+      const updatedReceipts = [...receipts, ...newReceipts];
       const newBreakdown = calculateBreakdown(updatedReceipts);
 
       setReceipts(updatedReceipts);
@@ -150,7 +166,7 @@ export function useReceiptManager() {
     } finally {
       setIsProcessing(false);
     }
-  }, [processFiles, calculateBreakdown, saveToStorage]);
+  }, [receipts, calculateBreakdown, saveToStorage]);
 
   // Delete a receipt
   const deleteReceipt = useCallback((receiptId: string) => {
@@ -201,6 +217,7 @@ export function useReceiptManager() {
     hasData: receipts.length > 0 && breakdown !== null,
 
     // Actions
+    processFiles,
     addReceipts,
     deleteReceipt,
     clearAll,

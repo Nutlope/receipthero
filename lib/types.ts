@@ -18,6 +18,20 @@ export const ProcessedReceiptSchema = z.object({
 // Type exports
 export type ProcessedReceipt = z.infer<typeof ProcessedReceiptSchema>;
 
+// Status for uploaded files
+export type FileStatus = 'processing' | 'receipt' | 'not-receipt' | 'error';
+
+export interface UploadedFile {
+  id: string;
+  name: string;
+  file: File;
+  status: FileStatus;
+  receipt?: ProcessedReceipt;
+  error?: string;
+  base64?: string;
+  mimeType?: string;
+}
+
 export interface SpendingCategory {
   name: string;
   amount: number;

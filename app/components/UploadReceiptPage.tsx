@@ -3,22 +3,13 @@
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { ProcessedReceipt } from "@/lib/types";
+import { UploadedFile } from "@/lib/types";
+import { normalizeDate } from "@/lib/utils";
 import Header from "./Header";
 import Footer from "./Footer";
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  file: File;
-  isProcessing: boolean;
-  isProcessed: boolean;
-  error?: string;
-  receipt?: ProcessedReceipt;
-}
-
 interface UploadReceiptPageProps {
-  onProcessFiles: (files: File[], receipts: ProcessedReceipt[], base64s: string[]) => void;
+  onProcessFiles: (uploadedFiles: UploadedFile[]) => void;
 }
 
 export default function UploadReceiptPage({
@@ -32,8 +23,8 @@ export default function UploadReceiptPage({
   // Auto-redirect logic: if all files are processed and user doesn't upload more within 5 seconds
   useEffect(() => {
     const allFilesProcessed = uploadedFiles.length > 0 &&
-      uploadedFiles.every(f => f.isProcessed);
-    const hasSuccessfulReceipts = uploadedFiles.some(f => f.isProcessed && !f.error && f.receipt);
+      uploadedFiles.every(f => f.status !== 'processing');
+    const hasSuccessfulReceipts = uploadedFiles.some(f => f.status === 'receipt' && f.receipt);
 
     if (allFilesProcessed && hasSuccessfulReceipts) {
       // Clear any existing timers
@@ -121,8 +112,7 @@ export default function UploadReceiptPage({
       id: Math.random().toString(36).slice(2, 11),
       name: file.name,
       file,
-      isProcessing: true,
-      isProcessed: false,
+      status: 'processing' as const,
     }));
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
@@ -153,10 +143,11 @@ export default function UploadReceiptPage({
 
         if (response.ok && data.receipts && data.receipts.length > 0) {
           const receipt = data.receipts[0]; // Take first receipt if multiple
-          const processedReceipt: ProcessedReceipt = {
+          const processedReceipt = {
             ...receipt,
             id: uploadedFile.id,
             fileName: uploadedFile.name,
+            date: normalizeDate(receipt.date), // Normalize date format
             thumbnail: `data:image/jpeg;base64,${base64}`,
             base64,
             mimeType: uploadedFile.file.type,
@@ -166,19 +157,26 @@ export default function UploadReceiptPage({
           setUploadedFiles((prev) =>
             prev.map((f) =>
               f.id === uploadedFile.id
-                ? { ...f, isProcessing: false, isProcessed: true, receipt: processedReceipt }
+                ? { ...f, status: 'receipt' as const, receipt: processedReceipt, base64, mimeType: uploadedFile.file.type }
                 : f
             )
           );
         } else {
-          throw new Error(data.error || 'OCR processing failed');
+          // No receipt data found
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.id === uploadedFile.id
+                ? { ...f, status: 'not-receipt' as const, base64, mimeType: uploadedFile.file.type }
+                : f
+            )
+          );
         }
       } catch (error) {
         console.error('Error processing file:', error);
         setUploadedFiles((prev) =>
           prev.map((f) =>
             f.id === uploadedFile.id
-              ? { ...f, isProcessing: false, isProcessed: true, error: error instanceof Error ? error.message : 'Processing failed' }
+              ? { ...f, status: 'error' as const, error: error instanceof Error ? error.message : 'Processing failed' }
               : f
           )
         );
@@ -191,19 +189,12 @@ export default function UploadReceiptPage({
   };
 
   const allFilesProcessed = uploadedFiles.length > 0 &&
-    uploadedFiles.every(f => f.isProcessed);
-  const hasSuccessfulReceipts = uploadedFiles.some(f => f.isProcessed && !f.error && f.receipt);
+    uploadedFiles.every(f => f.status !== 'processing');
+  const hasSuccessfulReceipts = uploadedFiles.some(f => f.status === 'receipt' && f.receipt);
 
   // Auto-generate results when all files are processed
   const handleAutoGenerateResults = () => {
-    const processedReceipts = uploadedFiles
-      .filter(f => f.isProcessed && !f.error && f.receipt)
-      .map(f => f.receipt!);
-
-    const files = uploadedFiles.map((f) => f.file);
-    const base64s = uploadedFiles.map((f) => f.receipt?.base64 || '');
-
-    onProcessFiles(files, processedReceipts, base64s);
+    onProcessFiles(uploadedFiles);
   };
 
   return (
@@ -262,13 +253,15 @@ export default function UploadReceiptPage({
                 {uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md border ${
-                      file.error
-                        ? 'bg-red-50 border-red-200'
-                        : file.isProcessed
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-gray-100 border-[#d1d5dc]'
-                    }`}
+                     className={`w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md border ${
+                       file.status === 'error'
+                         ? 'bg-red-50 border-red-200'
+                         : file.status === 'receipt'
+                         ? 'bg-green-50 border-green-200'
+                         : file.status === 'not-receipt'
+                         ? 'bg-yellow-50 border-yellow-200'
+                         : 'bg-gray-100 border-[#d1d5dc]'
+                     }`}
                     style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
                   >
                     <div className="flex items-center gap-2 flex-1">
@@ -277,14 +270,14 @@ export default function UploadReceiptPage({
                       }`}>
                         {file.name}
                       </p>
-                      {file.isProcessing && (
+                      {file.status === 'processing' && (
                         <img
                           src="/loading.svg"
                           alt="Processing"
                           className="w-4 h-4 animate-spin"
                         />
                       )}
-                      {file.isProcessed && !file.error && (
+                      {file.status === 'receipt' && (
                         <svg
                           className="w-4 h-4 text-green-600"
                           fill="none"
@@ -299,7 +292,22 @@ export default function UploadReceiptPage({
                           />
                         </svg>
                       )}
-                      {file.error && (
+                      {file.status === 'not-receipt' && (
+                        <svg
+                          className="w-4 h-4 text-yellow-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                          />
+                        </svg>
+                      )}
+                      {file.status === 'error' && (
                         <svg
                           className="w-4 h-4 text-red-600"
                           fill="none"
@@ -379,7 +387,7 @@ export default function UploadReceiptPage({
                   <span className="text-red-600">Some files failed to process. Please try again.</span>
                 )
               ) : (
-                <span>Processing files... {uploadedFiles.filter(f => f.isProcessed).length}/{uploadedFiles.length} complete</span>
+                <span>Processing files... {uploadedFiles.filter(f => f.status !== 'processing').length}/{uploadedFiles.length} complete</span>
               )}
             </div>
           )}
