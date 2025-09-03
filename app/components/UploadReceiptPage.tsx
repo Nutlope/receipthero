@@ -66,13 +66,13 @@ export default function UploadReceiptPage({
           <h1 className="text-2xl font-medium mb-4 text-[#030712]">
             Organize Your Receipts
           </h1>
-          <p className="text-base text-[#4a5565] max-w-[271px] mx-auto">
+          <p className="text-base text-[#4a5565] max-w-full md:max-w-[271px] mx-auto">
             Instantly convert invoices into clear, categorized summaries.
           </p>
         </div>
 
-        <div className="w-[361px] h-[438px] mx-auto mb-8 bg-white border border-[#d1d5dc] rounded-2xl shadow-sm">
-          <div className="w-[329px] h-[406px] m-4 bg-gray-50 border border-[#d1d5dc] border-dashed rounded-xl flex flex-col">
+        <div className="w-full md:w-[361px] h-[438px] mx-auto mb-8 bg-white border border-[#d1d5dc] rounded-2xl shadow-sm">
+          <div className="w-full md:w-[329px] h-[406px] m-4 bg-gray-50 border border-[#d1d5dc] border-dashed rounded-xl flex flex-col">
             {uploadedFiles.length === 0 && !isProcessing ? (
               <div
                 className="h-full flex flex-col items-center justify-center p-8"
