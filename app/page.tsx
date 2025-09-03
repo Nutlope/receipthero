@@ -1,36 +1,43 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Upload, Star, Trash2 } from "lucide-react"
-import { processReceiptImages, type ProcessedReceipt, type SpendingBreakdown } from "@/lib/mock-receipt-processor"
+import { useState } from "react";
+import { Button } from "@/ui/button";
+import { Card } from "@/ui/card";
+import { Upload, Star, Trash2 } from "lucide-react";
+import {
+  processReceiptImages,
+  type ProcessedReceipt,
+  type SpendingBreakdown,
+} from "@/lib/mock-receipt-processor";
 
 interface UploadedFile {
-  id: string
-  name: string
-  file: File
+  id: string;
+  name: string;
+  file: File;
 }
 
 export default function HomePage() {
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [processedReceipts, setProcessedReceipts] = useState<ProcessedReceipt[]>([])
-  const [spendingBreakdown, setSpendingBreakdown] = useState<SpendingBreakdown | null>(null)
-  const [showResults, setShowResults] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedReceipts, setProcessedReceipts] = useState<
+    ProcessedReceipt[]
+  >([]);
+  const [spendingBreakdown, setSpendingBreakdown] =
+    useState<SpendingBreakdown | null>(null);
+  const [showResults, setShowResults] = useState(false);
 
   const recalculateBreakdown = (receipts: ProcessedReceipt[]) => {
-    const categoryTotals = receipts.reduce(
-      (acc, receipt) => {
-        acc[receipt.category] = (acc[receipt.category] || 0) + receipt.amount
-        return acc
-      },
-      {} as Record<string, number>,
-    )
+    const categoryTotals = receipts.reduce((acc, receipt) => {
+      acc[receipt.category] = (acc[receipt.category] || 0) + receipt.amount;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const totalSpending = receipts.reduce((sum, receipt) => sum + receipt.amount, 0)
+    const totalSpending = receipts.reduce(
+      (sum, receipt) => sum + receipt.amount,
+      0
+    );
 
     const categories = Object.entries(categoryTotals)
       .map(([name, amount]) => ({
@@ -38,103 +45,105 @@ export default function HomePage() {
         amount: Math.round(amount * 100) / 100,
         percentage: Math.round((amount / totalSpending) * 100),
       }))
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => b.amount - a.amount);
 
     return {
       totalSpending: Math.round(totalSpending * 100) / 100,
       totalReceipts: receipts.length,
       categories,
-    }
-  }
+    };
+  };
 
   const handleFileUpload = (files: FileList | null) => {
-    if (!files) return
+    if (!files) return;
 
     const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       file,
-    }))
+    }));
 
-    setUploadedFiles((prev) => [...prev, ...newFiles])
-  }
+    setUploadedFiles((prev) => [...prev, ...newFiles]);
+  };
 
   const removeFile = (id: string) => {
-    setUploadedFiles((prev) => prev.filter((file) => file.id !== id))
-  }
+    setUploadedFiles((prev) => prev.filter((file) => file.id !== id));
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
+    e.preventDefault();
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    handleFileUpload(e.dataTransfer.files)
-  }
+    e.preventDefault();
+    handleFileUpload(e.dataTransfer.files);
+  };
 
   const handleGenerateResults = async () => {
-    setIsProcessing(true)
+    setIsProcessing(true);
 
     try {
-      const files = uploadedFiles.map((f) => f.file)
-      const results = await processReceiptImages(files)
+      const files = uploadedFiles.map((f) => f.file);
+      const results = await processReceiptImages(files);
 
-      setProcessedReceipts(results.receipts)
-      setSpendingBreakdown(results.breakdown)
-      setShowResults(true)
+      setProcessedReceipts(results.receipts);
+      setSpendingBreakdown(results.breakdown);
+      setShowResults(true);
     } catch (error) {
-      console.error("Processing failed:", error)
+      console.error("Processing failed:", error);
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   const handleAddMoreReceipts = async () => {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.multiple = true
-    input.accept = "image/*"
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.accept = "image/*";
 
     input.onchange = async (e) => {
-      const files = (e.target as HTMLInputElement).files
-      if (!files || files.length === 0) return
+      const files = (e.target as HTMLInputElement).files;
+      if (!files || files.length === 0) return;
 
-      setIsProcessing(true)
+      setIsProcessing(true);
 
       try {
-        const results = await processReceiptImages(Array.from(files))
-        const updatedReceipts = [...processedReceipts, ...results.receipts]
+        const results = await processReceiptImages(Array.from(files));
+        const updatedReceipts = [...processedReceipts, ...results.receipts];
 
-        setProcessedReceipts(updatedReceipts)
-        setSpendingBreakdown(recalculateBreakdown(updatedReceipts))
+        setProcessedReceipts(updatedReceipts);
+        setSpendingBreakdown(recalculateBreakdown(updatedReceipts));
       } catch (error) {
-        console.error("Processing failed:", error)
+        console.error("Processing failed:", error);
       } finally {
-        setIsProcessing(false)
+        setIsProcessing(false);
       }
-    }
+    };
 
-    input.click()
-  }
+    input.click();
+  };
 
   const handleDeleteReceipt = (receiptId: string) => {
-    const updatedReceipts = processedReceipts.filter((receipt) => receipt.id !== receiptId)
-    setProcessedReceipts(updatedReceipts)
+    const updatedReceipts = processedReceipts.filter(
+      (receipt) => receipt.id !== receiptId
+    );
+    setProcessedReceipts(updatedReceipts);
 
     if (updatedReceipts.length === 0) {
-      setShowResults(false)
-      setSpendingBreakdown(null)
+      setShowResults(false);
+      setSpendingBreakdown(null);
     } else {
-      setSpendingBreakdown(recalculateBreakdown(updatedReceipts))
+      setSpendingBreakdown(recalculateBreakdown(updatedReceipts));
     }
-  }
+  };
 
   const handleStartOver = () => {
-    setUploadedFiles([])
-    setProcessedReceipts([])
-    setSpendingBreakdown(null)
-    setShowResults(false)
-  }
+    setUploadedFiles([]);
+    setProcessedReceipts([]);
+    setSpendingBreakdown(null);
+    setShowResults(false);
+  };
 
   if (showResults && spendingBreakdown) {
     return (
@@ -145,7 +154,9 @@ export default function HomePage() {
               <div className="w-6 h-6 bg-[#101828] rounded flex items-center justify-center">
                 <span className="text-white text-xs font-bold">R</span>
               </div>
-              <span className="text-lg font-semibold text-[#101828]">Receipt Hero</span>
+              <span className="text-lg font-semibold text-[#101828]">
+                Receipt Hero
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 px-3.5 py-[7px] rounded bg-white/80 border-[0.7px] border-[#d1d5dc] shadow-sm">
@@ -158,8 +169,12 @@ export default function HomePage() {
           <aside className="w-80 p-6 border-r bg-card">
             <div className="mb-8">
               <h2 className="text-lg font-semibold mb-2">Total Spending</h2>
-              <div className="text-3xl font-bold">${spendingBreakdown.totalSpending}</div>
-              <div className="text-sm text-muted-foreground">{spendingBreakdown.totalReceipts} receipts processed</div>
+              <div className="text-3xl font-bold">
+                ${spendingBreakdown.totalSpending}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {spendingBreakdown.totalReceipts} receipts processed
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -171,9 +186,14 @@ export default function HomePage() {
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <div className="w-full bg-muted rounded-full h-2 mr-2">
-                      <div className="bg-primary h-2 rounded-full" style={{ width: `${category.percentage}%` }} />
+                      <div
+                        className="bg-primary h-2 rounded-full"
+                        style={{ width: `${category.percentage}%` }}
+                      />
                     </div>
-                    <span className="text-xs text-muted-foreground">{category.percentage}%</span>
+                    <span className="text-xs text-muted-foreground">
+                      {category.percentage}%
+                    </span>
                   </div>
                 </div>
               ))}
@@ -188,7 +208,9 @@ export default function HomePage() {
               <Upload className="h-4 w-4 mr-2" />
               {isProcessing ? "Processing..." : "Upload Receipts"}
             </Button>
-            <div className="text-xs text-muted-foreground mt-2 text-center">Receipts will be added to the table</div>
+            <div className="text-xs text-muted-foreground mt-2 text-center">
+              Receipts will be added to the table
+            </div>
           </aside>
 
           <main className="flex-1 p-6">
@@ -205,7 +227,9 @@ export default function HomePage() {
                       <th className="text-left p-4 font-medium">Date</th>
                       <th className="text-left p-4 font-medium">Vendor</th>
                       <th className="text-left p-4 font-medium">Category</th>
-                      <th className="text-left p-4 font-medium">Payment Method</th>
+                      <th className="text-left p-4 font-medium">
+                        Payment Method
+                      </th>
                       <th className="text-left p-4 font-medium">Tax Amount</th>
                       <th className="text-left p-4 font-medium">Amount</th>
                       <th className="text-left p-4 font-medium">Actions</th>
@@ -213,7 +237,10 @@ export default function HomePage() {
                   </thead>
                   <tbody>
                     {processedReceipts.map((receipt) => (
-                      <tr key={receipt.id} className="border-b hover:bg-muted/25">
+                      <tr
+                        key={receipt.id}
+                        className="border-b hover:bg-muted/25"
+                      >
                         <td className="p-4">
                           <img
                             src={receipt.thumbnail || "/placeholder.svg"}
@@ -247,18 +274,22 @@ export default function HomePage() {
                       <td colSpan={7} className="p-4 font-semibold">
                         Total:
                       </td>
-                      <td className="p-4 font-bold">${spendingBreakdown.totalSpending}</td>
+                      <td className="p-4 font-bold">
+                        ${spendingBreakdown.totalSpending}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             </Card>
 
-            <footer className="text-center mt-8 text-sm text-[#555]">Powered by together.ai</footer>
+            <footer className="text-center mt-8 text-sm text-[#555]">
+              Powered by together.ai
+            </footer>
           </main>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -269,7 +300,9 @@ export default function HomePage() {
             <div className="w-6 h-6 bg-[#101828] rounded flex items-center justify-center">
               <span className="text-white text-xs font-bold">R</span>
             </div>
-            <span className="text-lg font-semibold text-[#101828]">Receipt Hero</span>
+            <span className="text-lg font-semibold text-[#101828]">
+              Receipt Hero
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 px-3.5 py-[7px] rounded bg-white/80 border-[0.7px] border-[#d1d5dc] shadow-sm">
@@ -356,18 +389,84 @@ export default function HomePage() {
                 stroke="#D1D5DC"
                 strokeWidth="0.7"
               />
-              <rect x="21.9929" y="0.6" width="38.8" height="51.8" rx="2.4" fill="white" />
-              <rect x="21.9929" y="0.6" width="38.8" height="51.8" rx="2.4" stroke="#D1D5DC" strokeWidth="0.8" />
-              <rect x="28.3929" y={8} width={17} height={3} rx="1.5" fill="#D1D5DC" />
-              <rect x="33.3929" y={15} width={21} height={2} rx={1} fill="#99A1AF" />
-              <rect x="33.3929" y={25} width={21} height={2} rx={1} fill="#99A1AF" />
-              <rect x="33.3929" y={35} width={21} height={2} rx={1} fill="#99A1AF" />
-              <rect x="28.3929" y={15} width={4} height={2} rx={1} fill="#99A1AF" />
-              <rect x="28.3929" y={25} width={4} height={2} rx={1} fill="#99A1AF" />
-              <rect x="28.3929" y={35} width={4} height={2} rx={1} fill="#99A1AF" />
+              <rect
+                x="21.9929"
+                y="0.6"
+                width="38.8"
+                height="51.8"
+                rx="2.4"
+                fill="white"
+              />
+              <rect
+                x="21.9929"
+                y="0.6"
+                width="38.8"
+                height="51.8"
+                rx="2.4"
+                stroke="#D1D5DC"
+                strokeWidth="0.8"
+              />
+              <rect
+                x="28.3929"
+                y={8}
+                width={17}
+                height={3}
+                rx="1.5"
+                fill="#D1D5DC"
+              />
+              <rect
+                x="33.3929"
+                y={15}
+                width={21}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
+              <rect
+                x="33.3929"
+                y={25}
+                width={21}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
+              <rect
+                x="33.3929"
+                y={35}
+                width={21}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
+              <rect
+                x="28.3929"
+                y={15}
+                width={4}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
+              <rect
+                x="28.3929"
+                y={25}
+                width={4}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
+              <rect
+                x="28.3929"
+                y={35}
+                width={4}
+                height={2}
+                rx={1}
+                fill="#99A1AF"
+              />
             </svg>
           </div>
-          <h1 className="text-2xl font-medium mb-4 text-[#030712]">Organize Your Receipts</h1>
+          <h1 className="text-2xl font-medium mb-4 text-[#030712]">
+            Organize Your Receipts
+          </h1>
           <p className="text-base text-[#4a5565] max-w-[271px] mx-auto">
             Instantly convert invoices into clear, categorized summaries.
           </p>
@@ -398,8 +497,12 @@ export default function HomePage() {
                     />
                   </svg>
                 </div>
-                <p className="text-base text-[#101828] mb-2 text-center">Drag and drop your receipts here</p>
-                <p className="text-base text-[#6a7282] mb-6 text-center">or click "select files"</p>
+                <p className="text-base text-[#101828] mb-2 text-center">
+                  Drag and drop your receipts here
+                </p>
+                <p className="text-base text-[#6a7282] mb-6 text-center">
+                  or click "select files"
+                </p>
                 <button
                   className="w-[120px] h-10 bg-white border border-[#d1d5dc] rounded-md shadow-sm text-base text-[#364153] hover:bg-gray-50 transition-colors"
                   style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
@@ -424,8 +527,13 @@ export default function HomePage() {
                     className="w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md bg-gray-100 border border-[#d1d5dc]"
                     style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
                   >
-                    <p className="text-xs text-[#364153] truncate flex-1">{file.name}</p>
-                    <button onClick={() => removeFile(file.id)} className="flex-shrink-0 hover:opacity-70 ml-2">
+                    <p className="text-xs text-[#364153] truncate flex-1">
+                      {file.name}
+                    </p>
+                    <button
+                      onClick={() => removeFile(file.id)}
+                      className="flex-shrink-0 hover:opacity-70 ml-2"
+                    >
                       <svg
                         width={12}
                         height={12}
@@ -450,7 +558,9 @@ export default function HomePage() {
                 <button
                   className="w-full h-[33px] flex items-center justify-start px-4 gap-3 rounded-md bg-white border border-[#d1d5dc] hover:bg-gray-50 transition-colors"
                   style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
-                  onClick={() => document.getElementById("file-input-more")?.click()}
+                  onClick={() =>
+                    document.getElementById("file-input-more")?.click()
+                  }
                 >
                   <svg
                     width={14}
@@ -481,7 +591,9 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-8">
-                <p className="text-base text-[#101828] mb-2 text-center">Processing...</p>
+                <p className="text-base text-[#101828] mb-2 text-center">
+                  Processing...
+                </p>
               </div>
             )}
           </div>
@@ -514,12 +626,16 @@ export default function HomePage() {
                 strokeLinejoin="round"
               />
             </svg>
-            <p className="flex-grow-0 flex-shrink-0 text-base font-medium text-right text-white">Generate Results</p>
+            <p className="flex-grow-0 flex-shrink-0 text-base font-medium text-right text-white">
+              Generate Results
+            </p>
           </button>
         </div>
 
-        <footer className="text-center mt-16 text-sm text-[#555]">Powered by together.ai</footer>
+        <footer className="text-center mt-16 text-sm text-[#555]">
+          Powered by together.ai
+        </footer>
       </main>
     </div>
-  )
+  );
 }
