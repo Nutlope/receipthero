@@ -27,7 +27,7 @@ export default function SidebarReceipts({
   const { totalSpending, totalReceipts } = calculateTotals(processedReceipts);
 
   return (
-    <div className="w-[322px] rounded-2xl bg-white border border-[#d1d5dc] m-2 h-fit">
+    <div className="w-[322px] rounded-2xl bg-white border border-[#d1d5dc] m-4 h-fit">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -73,21 +73,25 @@ export default function SidebarReceipts({
         </a>
       </div>
       {/* Total Spending */}
-      <div className="p-6">
-        <p className="text-sm text-[#1d293d] mb-2">Total Spending</p>
-        <p className="text-4xl font-semibold text-[#020618] mb-4">
-          ${totalSpending.toFixed(2)}
-        </p>
-        <p className="text-sm text-[#4a5565] mb-6">
-          {totalReceipts} receipts processed
-        </p>
+      <div className="">
+        <div className="px-8 py-6">
+          <p className="text-sm text-[#1d293d] mb-2">Total Spending</p>
+          <p className="text-4xl font-semibold text-[#020618] mb-4">
+            ${totalSpending.toFixed(2)}
+          </p>
+          <p className="text-sm text-[#4a5565]">
+            {totalReceipts} receipts processed
+          </p>
+        </div>
         {/* Spending Breakdown */}
-        <div className="bg-white border border-gray-200 p-4 mb-6">
+        <div className="bg-white border border-gray-200 px-8 py-5 mb-6">
           <div className="space-y-4">
             {spendingBreakdown.categories.map((category) => (
               <div key={category.name}>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium">{category.name}</span>
+                  <span className="text-sm font-medium capitalize">
+                    {category.name}
+                  </span>
                   <span className="text-sm">${category.amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
@@ -107,7 +111,7 @@ export default function SidebarReceipts({
         </div>
         {/* Upload Section */}
         <div
-          className="rounded-xl bg-gray-50 border border-[#d1d5dc] border-dashed p-4 cursor-pointer"
+          className="rounded-xl bg-gray-50 border border-[#d1d5dc] border-dashed p-4 cursor-pointer m-6"
           onClick={onAddMoreReceipts}
           style={isProcessing ? { opacity: 0.5, pointerEvents: "none" } : {}}
         >
