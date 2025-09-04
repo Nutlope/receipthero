@@ -27,7 +27,7 @@ export default function SidebarReceipts({
   const { totalSpending, totalReceipts } = calculateTotals(processedReceipts);
 
   return (
-    <div className="w-[322px] rounded-2xl bg-white border border-[#d1d5dc] m-4 h-fit">
+    <div className="w-[322px] rounded-2xl bg-white border border-[#d1d5dc] m-4 md:mr-0 h-fit">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
