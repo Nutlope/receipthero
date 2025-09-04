@@ -55,7 +55,6 @@ export default function UploadReceiptPage({
 
       // Start main auto-redirect timer
       autoRedirectTimerRef.current = setTimeout(() => {
-        console.log('Auto-redirecting to results...');
         setCountdown(null);
         handleAutoGenerateResults();
       }, 5000);

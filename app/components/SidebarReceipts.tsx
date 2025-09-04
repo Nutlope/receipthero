@@ -118,11 +118,11 @@ export default function SidebarReceipts({
           <div className="flex flex-col items-center gap-2">
             <img
               src={isProcessing ? "/loading.svg" : "/upload.svg"}
-              className="w-8 h-8"
+              className={`w-8 h-8 ${isProcessing ? "animate-spin" : ""}`}
               alt={isProcessing ? "Loading" : "Upload"}
             />
             <p className="text-base font-medium text-[#1e2939]">
-              Upload Receipts
+              {isProcessing ? "Uploading receipts..." : "Upload Receipts"}
             </p>
             <p className="text-sm text-center text-[#6a7282]">
               Receipts will be added to the table
