@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { Trash2 } from "lucide-react";
 import type { ProcessedReceipt } from "@/lib/types";
 import { formatDisplayDate, toTitleCase } from "@/lib/utils";
+import ReceiptDetailsDialog from "./ReceiptDetailsDialog";
 
 interface TableReceiptsProps {
   processedReceipts: ProcessedReceipt[];
@@ -25,7 +27,20 @@ export default function TableReceipts({
   onDeleteReceipt,
   onStartOver,
 }: TableReceiptsProps) {
+  const [selectedReceipt, setSelectedReceipt] = useState<ProcessedReceipt | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const totalSpending = calculateTotals(processedReceipts);
+
+  const handleRowClick = (receipt: ProcessedReceipt) => {
+    setSelectedReceipt(receipt);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setSelectedReceipt(null);
+  };
 
   return (
     <main className="flex-1 p-4">
@@ -131,7 +146,8 @@ export default function TableReceipts({
               {processedReceipts.map((receipt) => (
                 <tr
                   key={receipt.id}
-                  className="border-b hover:bg-muted/25 text-base text-left text-[#1e2939]"
+                  className="border-b hover:bg-muted/25 text-base text-left text-[#1e2939] cursor-pointer"
+                  onClick={() => handleRowClick(receipt)}
                 >
                   <td className="p-4">
                     <img
@@ -176,6 +192,13 @@ export default function TableReceipts({
       <footer className="text-center mt-8 text-sm text-[#555]">
         Powered by together.ai
       </footer>
+
+      <ReceiptDetailsDialog
+        receipt={selectedReceipt}
+        isOpen={isDialogOpen}
+        onClose={handleDialogClose}
+        onDelete={onDeleteReceipt}
+      />
     </main>
   );
 }
