@@ -33,6 +33,7 @@ export default function ResultsPage({
         <TableReceipts
           processedReceipts={processedReceipts}
           onDeleteReceipt={onDeleteReceipt}
+          onStartOver={onStartOver}
         />
       </div>
     </div>
