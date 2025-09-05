@@ -6,6 +6,8 @@ import { Trash2 } from "lucide-react";
 import type { ProcessedReceipt } from "@/lib/types";
 import { formatDisplayDate, toTitleCase } from "@/lib/utils";
 import ReceiptDetailsDialog from "./ReceiptDetailsDialog";
+import { TOGETHER_AI_LINK } from "@/lib/constant";
+import Footer from "./Footer";
 
 interface TableReceiptsProps {
   processedReceipts: ProcessedReceipt[];
@@ -218,9 +220,7 @@ export default function TableReceipts({
         </div>
       </div>
 
-      <footer className="text-center mt-8 text-sm text-[#555]">
-        Powered by together.ai
-      </footer>
+      <Footer />
 
       <ReceiptDetailsDialog
         receipt={selectedReceipt}
