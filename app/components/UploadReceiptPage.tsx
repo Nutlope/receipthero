@@ -10,7 +10,7 @@ import Footer from "./Footer";
 import { Tooltip } from "@/ui/tooltip";
 
 interface UploadReceiptPageProps {
-  onProcessFiles: (uploadedFiles: UploadedFile[]) => void;
+  onProcessFiles: (uploadedFiles: UploadedFile[]) => Promise<void>;
   processFiles: (files: File[]) => Promise<UploadedFile[]>;
 }
 
@@ -57,9 +57,9 @@ export default function UploadReceiptPage({
       }, 1000);
 
       // Start main auto-redirect timer
-      autoRedirectTimerRef.current = setTimeout(() => {
+      autoRedirectTimerRef.current = setTimeout(async () => {
         setCountdown(null);
-        handleAutoGenerateResults();
+        await handleAutoGenerateResults();
       }, 5000);
     } else {
       // Clear countdown if conditions are not met
@@ -122,20 +122,19 @@ export default function UploadReceiptPage({
     try {
       const processedFiles = await processFiles(files);
 
-      // Update all files at once with their processed results
-      setUploadedFiles((prev) =>
-        prev.map((file) => {
-          // Match by file name since we don't have content-based IDs yet
-          const result = processedFiles.find((r) => r.name === file.name);
-          if (result) {
-            return { ...file, ...result };
-          }
-          return file;
-        })
-      );
+    // Update all files at once with their processed results
+    setUploadedFiles((prev) =>
+      prev.map((file) => {
+        // Match by file name since we don't have content-based IDs yet
+        const result = processedFiles.find((r) => r.name === file.name);
+        if (result) {
+          return { ...file, ...result };
+        }
+        return file;
+      })
+    );
 
-      // Call the parent's onProcessFiles callback with the processed results
-      onProcessFiles(processedFiles);
+    // Don't call onProcessFiles here - let the auto-redirect handle it after 5 seconds
     } catch (error) {
       console.error('Error processing files:', error);
       // Mark all files as error
@@ -163,8 +162,8 @@ export default function UploadReceiptPage({
   const hasSuccessfulReceipts = uploadedFiles.some(f => f.status === 'receipt' && f.receipt);
 
   // Auto-generate results when all files are processed
-  const handleAutoGenerateResults = () => {
-    onProcessFiles(uploadedFiles);
+  const handleAutoGenerateResults = async () => {
+    await onProcessFiles(uploadedFiles);
   };
 
   return (
