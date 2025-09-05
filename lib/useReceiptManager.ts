@@ -23,6 +23,17 @@ const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: strin
   });
 };
 
+// Simple hash function for base64 content
+const hashBase64 = (base64: string): string => {
+  let hash = 0;
+  for (let i = 0; i < base64.length; i++) {
+    const char = base64.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36);
+};
+
 export function useReceiptManager() {
   const [receipts, setReceipts] = useState<ProcessedReceipt[]>([]);
   const [breakdown, setBreakdown] = useState<SpendingBreakdown | null>(null);
@@ -95,9 +106,10 @@ export function useReceiptManager() {
 
         if (response.ok && data.receipts && data.receipts.length > 0) {
           const receipt = data.receipts[0]; // Take first receipt if multiple
+          const receiptId = hashBase64(base64);
           const processedReceipt: ProcessedReceipt = {
             ...receipt,
-            id: receipt.id || Math.random().toString(36).substring(2, 11),
+            id: receiptId,
             fileName: receipt.fileName || file.name,
             date: normalizeDate(receipt.date), // Normalize date format
             thumbnail: receipt.thumbnail || `data:${mimeType};base64,${base64}`,
@@ -151,7 +163,14 @@ export function useReceiptManager() {
       // Filter only files that are receipts
       const newReceipts = uploadedFiles
         .filter(file => file.status === 'receipt' && file.receipt)
-        .map(file => file.receipt!);
+        .map(file => file.receipt!)
+        // Deduplicate based on ID (hash of base64 content)
+        .filter(newReceipt => !receipts.some(existing => existing.id === newReceipt.id));
+
+      if (newReceipts.length === 0) {
+        // No new receipts to add
+        return { receipts, breakdown };
+      }
 
       const updatedReceipts = [...receipts, ...newReceipts];
       const newBreakdown = calculateBreakdown(updatedReceipts);
@@ -167,7 +186,7 @@ export function useReceiptManager() {
     } finally {
       setIsProcessing(false);
     }
-  }, [receipts, calculateBreakdown, saveToStorage]);
+  }, [receipts, breakdown, calculateBreakdown, saveToStorage]);
 
   // Delete a receipt
   const deleteReceipt = useCallback((receiptId: string) => {
