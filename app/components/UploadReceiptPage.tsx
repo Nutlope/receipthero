@@ -109,10 +109,7 @@ export default function UploadReceiptPage({
 
 
   const handleFileUpload = async (files: File[]) => {
-    const existingNames = new Set(uploadedFiles.map(f => f.name));
-    const uniqueFiles = files.filter(file => !existingNames.has(file.name));
-
-    const newFiles: UploadedFile[] = uniqueFiles.map((file) => ({
+    const newFiles: UploadedFile[] = files.map((file) => ({
       id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID
       name: file.name,
       file,
@@ -123,7 +120,7 @@ export default function UploadReceiptPage({
 
     // Use the receipt manager's processFiles function
     try {
-      const processedFiles = await processFiles(uniqueFiles);
+      const processedFiles = await processFiles(files);
 
       // Update all files at once with their processed results
       setUploadedFiles((prev) =>
