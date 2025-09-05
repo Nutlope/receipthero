@@ -25,9 +25,12 @@ export default function UploadReceiptPage({
 
   // Auto-redirect logic: if all files are processed and user doesn't upload more within 5 seconds
   useEffect(() => {
-    const allFilesProcessed = uploadedFiles.length > 0 &&
-      uploadedFiles.every(f => f.status !== 'processing');
-    const hasSuccessfulReceipts = uploadedFiles.some(f => f.status === 'receipt' && f.receipt);
+    const allFilesProcessed =
+      uploadedFiles.length > 0 &&
+      uploadedFiles.every((f) => f.status !== "processing");
+    const hasSuccessfulReceipts = uploadedFiles.some(
+      (f) => f.status === "receipt" && f.receipt
+    );
 
     if (allFilesProcessed && hasSuccessfulReceipts) {
       // Clear any existing timers
@@ -106,14 +109,12 @@ export default function UploadReceiptPage({
     },
   });
 
-
-
   const handleFileUpload = async (files: File[]) => {
     const newFiles: UploadedFile[] = files.map((file) => ({
       id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID
       name: file.name,
       file,
-      status: 'processing' as const,
+      status: "processing" as const,
     }));
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
@@ -122,29 +123,30 @@ export default function UploadReceiptPage({
     try {
       const processedFiles = await processFiles(files);
 
-    // Update all files at once with their processed results
-    setUploadedFiles((prev) =>
-      prev.map((file) => {
-        // Match by file name since we don't have content-based IDs yet
-        const result = processedFiles.find((r) => r.name === file.name);
-        if (result) {
-          return { ...file, ...result };
-        }
-        return file;
-      })
-    );
+      // Update all files at once with their processed results
+      setUploadedFiles((prev) =>
+        prev.map((file) => {
+          // Match by file name since we don't have content-based IDs yet
+          const result = processedFiles.find((r) => r.name === file.name);
+          if (result) {
+            return { ...file, ...result };
+          }
+          return file;
+        })
+      );
 
-    // Don't call onProcessFiles here - let the auto-redirect handle it after 5 seconds
+      // Don't call onProcessFiles here - let the auto-redirect handle it after 5 seconds
     } catch (error) {
-      console.error('Error processing files:', error);
+      console.error("Error processing files:", error);
       // Mark all files as error
       setUploadedFiles((prev) =>
         prev.map((file) => {
-          if (newFiles.some(newFile => newFile.name === file.name)) {
+          if (newFiles.some((newFile) => newFile.name === file.name)) {
             return {
               ...file,
-              status: 'error' as const,
-              error: error instanceof Error ? error.message : 'Processing failed',
+              status: "error" as const,
+              error:
+                error instanceof Error ? error.message : "Processing failed",
             };
           }
           return file;
@@ -157,9 +159,12 @@ export default function UploadReceiptPage({
     setUploadedFiles((prev) => prev.filter((file) => file.id !== id));
   };
 
-  const allFilesProcessed = uploadedFiles.length > 0 &&
-    uploadedFiles.every(f => f.status !== 'processing');
-  const hasSuccessfulReceipts = uploadedFiles.some(f => f.status === 'receipt' && f.receipt);
+  const allFilesProcessed =
+    uploadedFiles.length > 0 &&
+    uploadedFiles.every((f) => f.status !== "processing");
+  const hasSuccessfulReceipts = uploadedFiles.some(
+    (f) => f.status === "receipt" && f.receipt
+  );
 
   // Auto-generate results when all files are processed
   const handleAutoGenerateResults = async () => {
@@ -185,8 +190,16 @@ export default function UploadReceiptPage({
           </p>
         </div>
 
-        <div className={`w-full md:w-[361px] mx-auto mb-8 bg-white border border-[#d1d5dc] rounded-2xl shadow-sm ${uploadedFiles.length === 0 ? 'h-[438px]' : 'min-h-[438px]'}`}>
-          <div className={`w-full md:w-[329px] m-4 bg-gray-50 border border-[#d1d5dc] border-dashed rounded-xl flex flex-col ${uploadedFiles.length === 0 ? 'h-[406px]' : 'min-h-[406px]'}`}>
+        <div
+          className={`w-full md:w-[361px] mx-auto mb-8 bg-white border border-[#d1d5dc] rounded-2xl shadow-sm ${
+            uploadedFiles.length === 0 ? "h-[438px]" : "min-h-[438px]"
+          }`}
+        >
+          <div
+            className={`w-fit md:w-[329px] m-4 bg-gray-50 border border-[#d1d5dc] border-dashed rounded-xl flex flex-col ${
+              uploadedFiles.length === 0 ? "h-[406px]" : "min-h-[406px]"
+            }`}
+          >
             {uploadedFiles.length === 0 ? (
               <div
                 className="h-full flex flex-col items-center justify-center p-8 cursor-pointer"
@@ -222,81 +235,89 @@ export default function UploadReceiptPage({
                 {uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                     className={`w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md border ${
-                       file.status === 'error'
-                         ? 'bg-red-50 border-red-200'
-                         : file.status === 'receipt'
-                         ? 'bg-green-50 border-green-200'
-                         : file.status === 'not-receipt'
-                         ? 'bg-yellow-50 border-yellow-200'
-                         : 'bg-gray-100 border-[#d1d5dc]'
-                     }`}
+                    className={`w-full h-[33px] flex items-center justify-between px-3.5 py-2 rounded-md border ${
+                      file.status === "error"
+                        ? "bg-red-50 border-red-200"
+                        : file.status === "receipt"
+                        ? "bg-green-50 border-green-200"
+                        : file.status === "not-receipt"
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-gray-100 border-[#d1d5dc]"
+                    }`}
                     style={{ boxShadow: "0px 1px 12px -7px rgba(0,0,0,0.25)" }}
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      <p className={`text-xs truncate ${
-                        file.status === 'error' ? 'text-red-700' : 'text-[#364153]'
-                      }`}>
+                      <p
+                        className={`text-xs truncate ${
+                          file.status === "error"
+                            ? "text-red-700"
+                            : "text-[#364153]"
+                        }`}
+                      >
                         {file.name}
                       </p>
-                      {file.status === 'processing' && (
+                      {file.status === "processing" && (
                         <img
                           src="/loading.svg"
                           alt="Processing"
                           className="w-4 h-4 animate-spin"
                         />
                       )}
-                       {file.status === 'receipt' && (
-                         <Tooltip content="Receipt data successfully extracted!">
-                           <svg
-                             className="w-4 h-4 text-green-600 cursor-help"
-                             fill="none"
-                             stroke="currentColor"
-                             viewBox="0 0 24 24"
-                           >
-                             <path
-                               strokeLinecap="round"
-                               strokeLinejoin="round"
-                               strokeWidth={2}
-                               d="M5 13l4 4L19 7"
-                             />
-                           </svg>
-                         </Tooltip>
-                       )}
-                       {file.status === 'not-receipt' && (
-                         <Tooltip content="No receipt data found in this image. Please try a clearer photo of your receipt.">
-                           <svg
-                             className="w-4 h-4 text-yellow-600 cursor-help"
-                             fill="none"
-                             stroke="currentColor"
-                             viewBox="0 0 24 24"
-                           >
-                             <path
-                               strokeLinecap="round"
-                               strokeLinejoin="round"
-                               strokeWidth={2}
-                               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                             />
-                           </svg>
-                         </Tooltip>
-                       )}
-                       {file.status === 'error' && (
-                         <Tooltip content={`Processing failed: ${file.error || 'Unknown error'}`}>
-                           <svg
-                             className="w-4 h-4 text-red-600 cursor-help"
-                             fill="none"
-                             stroke="currentColor"
-                             viewBox="0 0 24 24"
-                           >
-                             <path
-                               strokeLinecap="round"
-                               strokeLinejoin="round"
-                               strokeWidth={2}
-                               d="M6 18L18 6M6 6l12 12"
-                             />
-                           </svg>
-                         </Tooltip>
-                       )}
+                      {file.status === "receipt" && (
+                        <Tooltip content="Receipt data successfully extracted!">
+                          <svg
+                            className="w-4 h-4 text-green-600 cursor-help"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </Tooltip>
+                      )}
+                      {file.status === "not-receipt" && (
+                        <Tooltip content="No receipt data found in this image. Please try a clearer photo of your receipt.">
+                          <svg
+                            className="w-4 h-4 text-yellow-600 cursor-help"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                            />
+                          </svg>
+                        </Tooltip>
+                      )}
+                      {file.status === "error" && (
+                        <Tooltip
+                          content={`Processing failed: ${
+                            file.error || "Unknown error"
+                          }`}
+                        >
+                          <svg
+                            className="w-4 h-4 text-red-600 cursor-help"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </Tooltip>
+                      )}
                     </div>
                     <button
                       onClick={(e) => {
@@ -353,20 +374,32 @@ export default function UploadReceiptPage({
                 hasSuccessfulReceipts ? (
                   countdown !== null ? (
                     <span className="text-blue-600 animate-pulse">
-                      Auto-redirecting to results in {countdown} second{countdown !== 1 ? 's' : ''}...
+                      Auto-redirecting to results in {countdown} second
+                      {countdown !== 1 ? "s" : ""}...
                     </span>
                   ) : (
-                    <span className="text-green-600">All files processed successfully! Redirecting to results...</span>
+                    <span className="text-green-600">
+                      All files processed successfully! Redirecting to
+                      results...
+                    </span>
                   )
                 ) : (
-                  <span className="text-red-600">Some files failed to process. Please try again.</span>
+                  <span className="text-red-600">
+                    Some files failed to process. Please try again.
+                  </span>
                 )
               ) : (
-                <span>Processing files... {uploadedFiles.filter(f => f.status !== 'processing').length}/{uploadedFiles.length} complete</span>
+                <span>
+                  Processing files...{" "}
+                  {
+                    uploadedFiles.filter((f) => f.status !== "processing")
+                      .length
+                  }
+                  /{uploadedFiles.length} complete
+                </span>
               )}
             </div>
           )}
-
         </div>
 
         <Footer />

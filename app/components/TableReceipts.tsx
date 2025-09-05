@@ -26,9 +26,10 @@ export default function TableReceipts({
   onDeleteReceipt,
   onStartOver,
 }: TableReceiptsProps) {
-  const [selectedReceipt, setSelectedReceipt] = useState<ProcessedReceipt | null>(null);
+  const [selectedReceipt, setSelectedReceipt] =
+    useState<ProcessedReceipt | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default to newest first
 
   const totalSpending = calculateTotals(processedReceipts);
 
@@ -36,11 +37,11 @@ export default function TableReceipts({
   const sortedReceipts = [...processedReceipts].sort((a, b) => {
     const dateA = new Date(a.date).getTime();
     const dateB = new Date(b.date).getTime();
-    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
   });
 
   const handleDateSort = () => {
-    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
   const handleRowClick = (receipt: ProcessedReceipt) => {
@@ -59,9 +60,9 @@ export default function TableReceipts({
         <h1 className="text-2xl font-medium text-left text-[#030712]">
           Your Overview:
         </h1>
-        <div className="hidden md:flex justify-start items-center gap-3">
+        <div className="flex flex-row justify-start items-center gap-3">
           <div
-            className="flex justify-center items-center flex-grow-0 flex-shrink-0 relative overflow-hidden gap-2 p-[9px] rounded-md bg-gray-100 border border-[#d1d5dc]"
+            className="hidden md:flex justify-center items-center flex-grow-0 flex-shrink-0 relative overflow-hidden gap-2 p-[9px] rounded-md bg-gray-100 border border-[#d1d5dc]"
             style={{ boxShadow: "0px 1px 7px -5px rgba(0,0,0,0.25)" }}
           >
             <svg
@@ -83,7 +84,7 @@ export default function TableReceipts({
             </svg>
           </div>
           <div
-            className="flex justify-center items-center flex-grow-0 flex-shrink-0 relative overflow-hidden gap-2 p-[9px] rounded-md bg-gray-100 border border-[#d1d5dc]"
+            className="hidden md:flex justify-center items-center flex-grow-0 flex-shrink-0 relative overflow-hidden gap-2 p-[9px] rounded-md bg-gray-100 border border-[#d1d5dc]"
             style={{ boxShadow: "0px 1px 7px -5px rgba(0,0,0,0.25)" }}
           >
             <svg
@@ -144,7 +145,7 @@ export default function TableReceipts({
                   <div className="flex items-center gap-1">
                     Date
                     <span className="text-xs">
-                      {sortOrder === 'asc' ? '↑' : '↓'}
+                      {sortOrder === "asc" ? "↑" : "↓"}
                     </span>
                   </div>
                 </th>
@@ -183,8 +184,10 @@ export default function TableReceipts({
                   <td className="p-4">{receipt.vendor}</td>
                   <td className="p-4">{toTitleCase(receipt.category)}</td>
                   <td className="p-4">{toTitleCase(receipt.paymentMethod)}</td>
-                   <td className="p-4">${receipt.taxAmount.toFixed(2)}</td>
-                   <td className="p-4 font-semibold">${receipt.amount.toFixed(2)}</td>
+                  <td className="p-4">${receipt.taxAmount.toFixed(2)}</td>
+                  <td className="p-4 font-semibold">
+                    ${receipt.amount.toFixed(2)}
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <Button
