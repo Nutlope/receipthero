@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
-import { togetheraiClient } from "@/lib/client";
-import { z } from "zod";
-import { ProcessedReceiptSchema } from "@/lib/types";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { NextResponse } from 'next/server';
+import { togetheraiClient } from '@/lib/client';
+import { z } from 'zod';
+import { ProcessedReceiptSchema } from '@/lib/types';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -12,7 +12,7 @@ const redis = new Redis({
 
 const ratelimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(40, "1 d"),
+  limiter: Ratelimit.slidingWindow(30, '1 d'),
   analytics: true,
 });
 
@@ -20,26 +20,26 @@ export async function POST(request: Request) {
   try {
     const { base64Image } = await request.json();
 
-    if (!base64Image || typeof base64Image !== "string") {
+    if (!base64Image || typeof base64Image !== 'string') {
       return NextResponse.json(
-        { error: "Missing required field: base64Image" },
+        { error: 'Missing required field: base64Image' },
         { status: 400 }
       );
     }
 
-    // Rate limiting: 40 receipts per day per IP
+    // Rate limiting: 30 receipts per day per IP
     const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0] ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
+      request.headers.get('x-forwarded-for')?.split(',')[0] ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
     const { success } = await ratelimit.limit(ip);
 
     if (!success) {
       return NextResponse.json(
         {
-          error: "Rate limit exceeded",
+          error: 'Rate limit exceeded',
           details:
-            "You've reached the daily limit of 40 receipts. Contact @nutlope on X/Twitter for higher limits.",
+            "You've reached the daily limit of 30 receipts. Contact @nutlope on X/Twitter for higher limits.",
         },
         { status: 429 }
       );
@@ -51,10 +51,10 @@ export async function POST(request: Request) {
     const jsonSchema = z.toJSONSchema(receiptSchema);
 
     const response = await togetheraiClient.chat.completions.create({
-      model: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      model: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
       messages: [
         {
-          role: "system",
+          role: 'system',
           content: `You are an expert at extracting receipt data. Extract all receipts from the image as a JSON object matching the schema.
 
 CRITICAL FORMATTING REQUIREMENTS:
@@ -89,27 +89,27 @@ PAYMENT METHODS: Common values include "cash", "credit", "debit", "check", "gift
 Extract all visible receipt data accurately. If information is not visible, use reasonable defaults or omit if not applicable. Respond only with valid JSON.`,
         },
         {
-          role: "user",
+          role: 'user',
           content: [
             {
-              type: "text",
-              text: "Extract receipt data from this image following the formatting and categorization rules.",
+              type: 'text',
+              text: 'Extract receipt data from this image following the formatting and categorization rules.',
             },
             {
-              type: "image_url",
+              type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${base64Image}` },
             },
           ],
         },
       ],
-      response_format: { type: "json_object", schema: jsonSchema },
+      response_format: { type: 'json_object', schema: jsonSchema },
     });
 
     const content = response?.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json(
-        { error: "OCR extraction failed: empty response" },
+        { error: 'OCR extraction failed: empty response' },
         { status: 502 }
       );
     }
@@ -119,26 +119,26 @@ Extract all visible receipt data accurately. If information is not visible, use 
       parsedJson = JSON.parse(content);
     } catch (e) {
       return NextResponse.json(
-        { error: "Invalid JSON from model" },
+        { error: 'Invalid JSON from model' },
         { status: 502 }
       );
     }
 
     const validated = receiptSchema.safeParse(parsedJson);
     if (!validated.success) {
-      console.error("OCR validation failed:", validated.error.message);
-      console.error("Raw response:", parsedJson);
+      console.error('OCR validation failed:', validated.error.message);
+      console.error('Raw response:', parsedJson);
       return NextResponse.json(
-        { error: "Validation failed", details: validated.error.message },
+        { error: 'Validation failed', details: validated.error.message },
         { status: 422 }
       );
     }
 
     return NextResponse.json({ receipts: validated.data.receipts });
   } catch (error) {
-    console.error("/api/ocr error", error);
+    console.error('/api/ocr error', error);
     return NextResponse.json(
-      { error: "Internal error while performing OCR" },
+      { error: 'Internal error while performing OCR' },
       { status: 500 }
     );
   }
