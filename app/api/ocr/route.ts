@@ -51,7 +51,8 @@ export async function POST(request: Request) {
     const jsonSchema = z.toJSONSchema(receiptSchema);
 
     const response = await togetheraiClient.chat.completions.create({
-      model: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+      model: 'moonshotai/Kimi-K2.6',
+      reasoning: { enabled: false },
       messages: [
         {
           role: 'system',
@@ -102,7 +103,13 @@ Extract all visible receipt data accurately. If information is not visible, use 
           ],
         },
       ],
-      response_format: { type: 'json_object', schema: jsonSchema },
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'receipt_extraction',
+          schema: jsonSchema,
+        },
+      },
     });
 
     const content = response?.choices?.[0]?.message?.content;
