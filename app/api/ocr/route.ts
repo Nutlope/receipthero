@@ -2,23 +2,52 @@ import { NextResponse } from 'next/server';
 import { togetheraiClient } from '@/lib/client';
 import { z } from 'zod';
 import { ProcessedReceiptSchema } from '@/lib/types';
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
+import {
+  DAILY_RECEIPT_LIMIT,
+  checkOcrRateLimit,
+  getClientIp,
+} from '@/lib/rate-limit';
+import {
+  MAX_BASE64_LENGTH,
+  MAX_REQUEST_BYTES,
+  detectImageType,
+} from '@/lib/input-limits';
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+const invalidImageResponse = () =>
+  NextResponse.json(
+    { error: 'Unsupported image. Please upload a JPEG, PNG or WebP image.' },
+    { status: 400 }
+  );
 
-const ratelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(30, '1 d'),
-  analytics: true,
-});
+const tooLargeResponse = () =>
+  NextResponse.json(
+    { error: 'Image is too large. Please upload a smaller image.' },
+    { status: 413 }
+  );
 
 export async function POST(request: Request) {
   try {
-    const { base64Image } = await request.json();
+    const contentLength = Number(request.headers.get('content-length'));
+    if (contentLength > MAX_REQUEST_BYTES) {
+      return tooLargeResponse();
+    }
+
+    const rawBody = await request.text();
+    if (rawBody.length > MAX_REQUEST_BYTES) {
+      return tooLargeResponse();
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    const base64Image =
+      body && typeof body === 'object'
+        ? (body as { base64Image?: unknown }).base64Image
+        : undefined;
 
     if (!base64Image || typeof base64Image !== 'string') {
       return NextResponse.json(
@@ -27,19 +56,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Rate limiting: 30 receipts per day per IP
-    const ip =
-      request.headers.get('x-forwarded-for')?.split(',')[0] ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
-    const { success } = await ratelimit.limit(ip);
+    if (base64Image.length > MAX_BASE64_LENGTH) {
+      return tooLargeResponse();
+    }
 
-    if (!success) {
+    const mimeType = detectImageType(base64Image);
+    if (!mimeType) {
+      return invalidImageResponse();
+    }
+
+    const rateLimit = await checkOcrRateLimit(getClientIp(request.headers));
+
+    if (rateLimit === 'unavailable') {
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable. Please try again shortly.' },
+        { status: 503 }
+      );
+    }
+
+    if (rateLimit === 'limited') {
       return NextResponse.json(
         {
           error: 'Rate limit exceeded',
-          details:
-            "You've reached the daily limit of 30 receipts. Contact @nutlope on X/Twitter for higher limits.",
+          details: `You've reached the limit of ${DAILY_RECEIPT_LIMIT} receipts per day. Please slow down or try again later. Contact @nutlope on X/Twitter for higher limits.`,
         },
         { status: 429 }
       );
@@ -98,7 +137,7 @@ Extract all visible receipt data accurately. If information is not visible, use 
             },
             {
               type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+              image_url: { url: `data:${mimeType};base64,${base64Image}` },
             },
           ],
         },
@@ -116,7 +155,7 @@ Extract all visible receipt data accurately. If information is not visible, use 
 
     if (!content) {
       return NextResponse.json(
-        { error: 'OCR extraction failed: empty response' },
+        { error: 'OCR extraction failed' },
         { status: 502 }
       );
     }
@@ -124,26 +163,33 @@ Extract all visible receipt data accurately. If information is not visible, use 
     let parsedJson: unknown;
     try {
       parsedJson = JSON.parse(content);
-    } catch (e) {
+    } catch {
       return NextResponse.json(
-        { error: 'Invalid JSON from model' },
+        { error: 'OCR extraction failed' },
         { status: 502 }
       );
     }
 
     const validated = receiptSchema.safeParse(parsedJson);
     if (!validated.success) {
-      console.error('OCR validation failed:', validated.error.message);
-      console.error('Raw response:', parsedJson);
+      console.error(
+        'OCR validation failed:',
+        validated.error.issues.length,
+        'schema issues'
+      );
       return NextResponse.json(
-        { error: 'Validation failed', details: validated.error.message },
+        { error: 'Could not read receipt data from this image' },
         { status: 422 }
       );
     }
 
     return NextResponse.json({ receipts: validated.data.receipts });
   } catch (error) {
-    console.error('/api/ocr error', error);
+    console.error(
+      '/api/ocr error',
+      error instanceof Error ? error.name : 'unknown error',
+      (error as { status?: unknown })?.status ?? ''
+    );
     return NextResponse.json(
       { error: 'Internal error while performing OCR' },
       { status: 500 }
