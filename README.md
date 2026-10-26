@@ -11,14 +11,14 @@
 
 - Next.js app router with Tailwind CSS
 - Together AI for LLM-powered OCR
-- Kimi K2.6 for receipt data extraction
+- Qwen3.5 9B for receipt data extraction
 - shadcn/ui components with Radix UI
 - Zod for data validation
 
 ## How it works
 
 1. Upload receipt images via drag & drop or file selection
-2. Send images to Together AI's Kimi model for OCR processing
+2. Send images to Together AI's Qwen3.5 vision model for OCR processing
 3. Extract structured data: vendor, date, amount, items, currency, payment method
 4. Automatically categorize expenses (groceries, dining, gas, etc.)
 5. Display spending breakdown and receipt management interface

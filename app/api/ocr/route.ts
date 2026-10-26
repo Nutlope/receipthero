@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     const jsonSchema = z.toJSONSchema(receiptSchema);
 
     const response = await togetheraiClient.chat.completions.create({
-      model: 'moonshotai/Kimi-K2.6',
+      model: 'Qwen/Qwen3.5-9B',
       reasoning: { enabled: false },
       messages: [
         {
@@ -188,7 +188,8 @@ Extract all visible receipt data accurately. If information is not visible, use 
     console.error(
       '/api/ocr error',
       error instanceof Error ? error.name : 'unknown error',
-      (error as { status?: unknown })?.status ?? ''
+      (error as { status?: unknown })?.status ?? '',
+      (error as { error?: { code?: unknown } })?.error?.code ?? ''
     );
     return NextResponse.json(
       { error: 'Internal error while performing OCR' },
