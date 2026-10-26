@@ -3,6 +3,7 @@ import { ProcessedReceipt, StoredReceipt, SpendingBreakdown, UploadedFile, FileS
 import { normalizeDate } from './utils';
 import { getMultipleUSDConversionRates } from './currency';
 import { useToast } from '@/ui/toast';
+import { MAX_BASE64_LENGTH, isAllowedImageType } from './input-limits';
 
 interface StoredData {
   receipts: StoredReceipt[];
@@ -23,6 +24,48 @@ const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: strin
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+const MAX_UPLOAD_DIMENSION = 2048;
+
+const loadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+};
+
+// Re-encode images the OCR API would reject (too large or unsupported type) as JPEG
+const prepareImageForUpload = async (file: File): Promise<{ base64: string; mimeType: string }> => {
+  const original = await readFileAsBase64(file);
+  if (isAllowedImageType(original.mimeType) && original.base64.length <= MAX_BASE64_LENGTH) {
+    return original;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(objectUrl);
+    let scale = Math.min(1, MAX_UPLOAD_DIMENSION / Math.max(img.width, img.height));
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      if (base64.length <= MAX_BASE64_LENGTH) {
+        return { base64, mimeType: 'image/jpeg' };
+      }
+      scale *= 0.75;
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  throw new Error('Image is too large');
 };
 
 // Simple hash function for base64 content
@@ -181,7 +224,7 @@ export function useReceiptManager() {
     // First, process all files to get OCR data
     const filePromises = files.map(async (file) => {
       try {
-        const { base64, mimeType } = await readFileAsBase64(file);
+        const { base64, mimeType } = await prepareImageForUpload(file);
         const fileId = hashBase64(base64); // Use content-based ID
 
         const response = await fetch('/api/ocr', {
@@ -201,6 +244,18 @@ export function useReceiptManager() {
             file,
             status: 'error' as FileStatus,
             error: 'Rate limit exceeded',
+            base64,
+            mimeType,
+          };
+        }
+
+        if (!response.ok && response.status !== 422) {
+          return {
+            id: fileId,
+            name: file.name,
+            file,
+            status: 'error' as FileStatus,
+            error: data.error || 'Processing failed',
             base64,
             mimeType,
           };
